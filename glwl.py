@@ -6,6 +6,7 @@ import pathlib
 from string import Template
 import argparse
 import requests
+from termcolor import colored, cprint
 from pprint import pprint
 #from google.cloud import translate_v2 as translate
 
@@ -43,6 +44,8 @@ WORD_CLASSES = {
     "PREP": "preposition",
     "VERB": "verb",
 }
+
+COLORS = ["light_yellow", "light_green", "light_blue", "light_magenta", "light_cyan"]
 
 def translate_word_lingua(text: str, langpair: str, top_n: int):
     api_key = os.environ.get("GLWL_API_KEY")
@@ -84,11 +87,6 @@ def translate_word_lingua(text: str, langpair: str, top_n: int):
 
 if __name__ == "__main__":
     data = translate_word_lingua(args.text, "de-en", 5)
-    english_word_translations = [x["l2_text"] for x in data]
-    parts_of_speech = set([x["wortart"] for x in data])
-    english_synonyms = [x["synonyme1"] for x in data]
-    german_synonyms = [x["synonyme2"] for x in data]
-
     opts = []
     template = Template("$german;$pos;$pronunciation;$gender;$english;$example;$example_translated")
     
@@ -113,7 +111,8 @@ if __name__ == "__main__":
                 line = f"{d['l2_text']} - NO EXAMPLE SENTENCES AVAILABLE"
             finally:
                 opts.append(line)
-                print(f"{i} → {line}")
+                print(f"{i} → ", end="")
+                cprint(f"{line}", COLORS[i % len(COLORS)])
 
         else:
             pprint(f"{i} → {data[i]}")
