@@ -7,9 +7,10 @@ from string import Template
 import argparse
 import requests
 from pprint import pprint
-from google.cloud import translate_v2 as translate
+#from google.cloud import translate_v2 as translate
 
 # TODO: test out DWDS API - https://www.dwds.de/d/api
+# TODO: Add Google TTS (Text-to-Speech) API integration
 
 parser = argparse.ArgumentParser(
         prog="glwl",
@@ -17,10 +18,10 @@ parser = argparse.ArgumentParser(
         epilog="")
 
 parser.add_argument('text', help="Word to lookup")
-parser.add_argument('file', help="File to append lookup")
-parser.add_argument('-a', '--anki', action='store_true', help="Output translation in Anki importable format")
-parser.add_argument('-r', '--reverse', action='store_true', help="Do reverse lookup (English to German)")
-parser.add_argument('-p', '--phrase', action='store_true', help="Phrase translation")
+parser.add_argument('file', nargs='?', default="anki_cards.txt", help="File to append lookup")
+parser.add_argument('-a', '--anki', action='store_true', help="output translation in Anki importable format")
+parser.add_argument('-r', '--reverse', action='store_true', help="do reverse lookup (English to German)")
+parser.add_argument('-p', '--phrase', action='store_true', help="enable phrase translation")
 
 args = parser.parse_args()
 
@@ -99,7 +100,7 @@ if __name__ == "__main__":
         if args.anki:
             try:
                 params = {
-                    "german": d['l2_text'],
+                    "german": d['l1_text'],
                     "pos": WORD_CLASSES[d['wortart']],
                     "pronunciation": "",
                     "gender": "",
