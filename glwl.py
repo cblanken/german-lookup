@@ -58,8 +58,8 @@ def translate_word_lingua(text: str, langpair: str, top_n: int):
         "X-RapidAPI-Host": "petapro-translate-v1.p.rapidapi.com",
     }
 
-    # The API supposedly acceps a `min_freq` parameter to limit results to only
-    # include translation that appear in the dataset more than `min_freq` times
+    # The API supposedly accepts a `min_freq` parameter to limit results to only
+    # include translations that appear in the dataset more than `min_freq` times
     # but it didn't work when I tried it. So, filtering has to be done manually.
     URL = "https://petapro-translate-v1.p.rapidapi.com/"
     min_freq = 1
@@ -68,7 +68,6 @@ def translate_word_lingua(text: str, langpair: str, top_n: int):
         "query": text,
     }
     resp = requests.get(URL, headers=headers, params=querystring);
-    print(f"Endpoint: {resp.url}")
 
     data = resp.json()
 
@@ -120,12 +119,18 @@ if __name__ == "__main__":
 
     # Select option
     sel = -1
+
     while sel < 0 or sel > len(opts):
         try:
-            sel = int(input(f"\nSelect one of the above 0-{len(opts)-1}: "))
+            if len(opts) == 1:
+                sel = int(input(f"\nSelect one of the above (0): "))
+            else:
+                sel = int(input(f"\nSelect one of the above (0-{len(opts)-1}): "))
         except ValueError:
             print("Invalid selection. Please enter a number in the provided range.");
             continue
+        except KeyboardInterrupt:
+            exit(0)
 
     with open(pathlib.Path(args.file), "a", encoding="utf-8") as fp:
         fp.write(f"{opts[sel]}\n")
