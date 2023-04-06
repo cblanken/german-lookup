@@ -68,6 +68,9 @@ def translate_word_lingua(text: str, langpair: str, top_n: int):
         "query": text,
     }
     resp = requests.get(URL, headers=headers, params=querystring);
+    
+    if resp.status_code != requests.codes.ok:
+        return None
 
     data = resp.json()
 
@@ -89,17 +92,21 @@ if __name__ == "__main__":
     opts = []
     template = Template("$german;$pos;$pronunciation;$gender;$english;$example;$example_translated")
     
-    if len(data) < 1:
-        print("No translations found")
+    if data is None or len(data) < 1:
+        print(f"No translations found for \"{args.text}\"")
         sys.exit(0)
                 
+    pronunciation = requests.get(f"https://www.dwds.de/api/ipa/?q={args.text[:20]}")
+    pronunciation.encoding = 'utf-8'
+    pronunciation = pronunciation.json() if pronunciation.status_code is requests.codes.ok else ""
     for i, d in enumerate(data):
         if args.anki:
             try:
                 params = {
                     "german": d['l1_text'],
                     "pos": WORD_CLASSES[d['wortart']],
-                    "pronunciation": "",
+                    "pronunciation": pronunciation[0]['ipa'] if len(pronunciation) > 0 and
+                        pronunciation[0]['ipa'] is not None else "",
                     "gender": "",
                     "english": d['l2_text'],
                     "example": d['sentences'][0][0],
