@@ -8,10 +8,11 @@ import argparse
 import requests
 from termcolor import colored, cprint
 from pprint import pprint
-#from google.cloud import translate_v2 as translate
+from google.cloud import translate_v2 as translate
+from google.cloud import texttospeech as tts
 
 # TODO: test out DWDS API - https://www.dwds.de/d/api
-# TODO: Add Google TTS (Text-to-Speech) API integration
+# TODO: implement English lookup
 
 parser = argparse.ArgumentParser(
         prog="glwl",
@@ -21,8 +22,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument('text', help="Word to lookup")
 parser.add_argument('file', nargs='?', default="anki_cards.txt", help="File to append lookup")
 parser.add_argument('-a', '--anki', action='store_true', help="output translation in Anki importable format")
-parser.add_argument('-r', '--reverse', action='store_true', help="do reverse lookup (English to German)")
 parser.add_argument('-p', '--phrase', action='store_true', help="enable phrase translation")
+parser.add_argument('-g', '--google-voices', action='store_true', help="enable gcloud text-to-speech")
 
 args = parser.parse_args()
 
@@ -86,8 +87,38 @@ def translate_word_lingua(text: str, langpair: str, top_n: int):
 
     return data
 
+def get_voices(language_code: str = None, filter_text: str = ""):
+    client = tts.TextToSpeechClient()
+    response = client.list_voices(language_code=language_code)
+    voices = sorted(response.voices, key=lambda voice: voice.name)
+    voices = [x for x in voices if filter_text in x.name]
+    return voices
+
+def text_to_wav(voice: str, text: str):
+    language_code = "-".join(voice.split("-")[:2])
+    text_input = tts.SynthesisInput(text=text)
+    voice_params = tts.VoiceSelectionParams(
+        language_code=language_code,
+        name=voice
+    )
+    audio_config = tts.AudioConfig(audio_encoding=tts.AudioEncoding.LINEAR16)
+
+    client = tts.TextToSpeechClient()
+    response = client.synthesize_speech(
+        input=text_input,
+        voice=voice_params,
+        audio_config=audio_config,
+    )
+    
+    filename = f"{args.text.replace(' ', '_')}-{voice}.wav"
+    filepath = pathlib.Path("sound/")
+    filepath.mkdir(parents=True, exist_ok=True)
+    with open(filepath.joinpath(filename), "wb") as fp:
+        fp.write(response.audio_content)
+        print(f"Saved {filename} to {filepath}/")
 
 if __name__ == "__main__":
+    # Query linguatools for text translation
     data = translate_word_lingua(args.text, "de-en", 5)
     opts = []
     template = Template("$german;$pos;$pronunciation;$gender;$english;$example;$example_translated")
@@ -96,6 +127,7 @@ if __name__ == "__main__":
         print(f"No translations found for \"{args.text}\"")
         sys.exit(0)
                 
+    # Query dwds for pronunciation of text
     pronunciation = requests.get(f"https://www.dwds.de/api/ipa/?q={args.text[:20]}")
     pronunciation.encoding = 'utf-8'
     pronunciation = pronunciation.json() if pronunciation.status_code is requests.codes.ok else ""
@@ -124,9 +156,9 @@ if __name__ == "__main__":
             pprint(f"{i} → {data[i]}")
             opts.append(data[i])
 
-    # Select option
-    sel = -1
 
+    # Prompt user for translation selection
+    sel = -1
     while sel < 0 or sel > len(opts):
         try:
             if len(opts) == 1:
@@ -142,3 +174,23 @@ if __name__ == "__main__":
     with open(pathlib.Path(args.file), "a", encoding="utf-8") as fp:
         fp.write(f"{opts[sel]}\n")
 
+    # Query gcloud TTS for speech synthesis
+    if args.google_voices:
+        print("Testing google voices...")
+        voices = get_voices("de", "Wavenet")
+        print(f" Voices: {len(voices)} ".center(60, "-"))
+        for i, voice in enumerate(voices):
+            languages = ", ".join(voice.language_codes)
+            name = voice.name
+            gender = tts.SsmlVoiceGender(voice.ssml_gender).name
+            rate = voice.natural_sample_rate_hertz
+            print(f"{i:<3}→ {languages:<8} | {name:<24} | {gender:<8} | {rate:,} Hz")
+
+        sel = -1
+        if len(voices) == 1:
+            sel = 0
+        else:
+            sel = int(input(f"\nSelect one of the voices (0-{len(voices)-1}): "))
+
+        print(voices[sel].name)
+        text_to_wav(voices[sel].name, args.text)
