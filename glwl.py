@@ -41,6 +41,7 @@ def translate_text_gcloud(source: str, target: str, text: str):
 WORD_CLASSES = {
     "ADJ": "adj",
     "ADV": "adverb",
+    "KONJ": "conjuction",
     "NOMEN": "noun",
     "PREP": "preposition",
     "PRON": "pronoun",
@@ -119,7 +120,6 @@ def save_sound_file(data, filename):
     target_dir.mkdir(parents=True, exist_ok=True)
     with open(target_dir.joinpath(filename), "wb") as fp:
         fp.write(data)
-        #print(f"Saved file: {filepath}")
 
 if __name__ == "__main__":
     # Query linguatools for text translation
@@ -130,10 +130,49 @@ if __name__ == "__main__":
         print(f"No translations found for \"{args.text}\"")
         sys.exit(0)
 
+    # Query dwds for pronunciation of text
+    pronunciation = requests.get(f"https://www.dwds.de/api/ipa/?q={args.text[:20]}")
+    pronunciation.encoding = 'utf-8'
+    pronunciation = pronunciation.json() if pronunciation.status_code is requests.codes.ok else ""
+    if args.anki:
+        template = Template("$german;$pos;$pronunciation;$sound_file;$gender;$english;$example;$example_translated")
+        for i, d in enumerate(data):
+            try:
+                line = "\n    ".join([
+                    f"German: {d['l1_text']}",
+                    f"English: {d['l2_text']}",
+                    f"German Sentence: {d['sentences'][0][0]}",
+                    f"English Sentence: {d['sentences'][0][1]}",
+                ])
+            except IndexError as e:
+                line = f"{d['l2_text']} - NO EXAMPLE SENTENCES AVAILABLE"
+            finally:
+                opts.append(line)
+                print(f"{i} → ", end="")
+                cprint(f"{line}", COLORS[i % len(COLORS)])
+
+    else:
+        opts = [f"{i} → {data[i]}" for i in range(0, len(data))]
+
+
+    # Prompt user for translation selection
+    data_sel = -1
+    while data_sel < 0 or data_sel > len(opts):
+        try:
+            if len(opts) == 1:
+                data_sel = int(input(f"\nSelect one of the above (0): "))
+            else:
+                data_sel = int(input(f"\nSelect one of the above (0-{len(opts)-1}): "))
+        except ValueError:
+            print("Invalid data_selection. Please enter a number in the provided range.");
+            continue
+        except KeyboardInterrupt:
+            sys.exit(0)
+
     # Query gcloud TTS for speech synthesis options
-    filename = ""
+    sound_filename = ""
     if args.google_voices:
-        print("Testing google voices...")
+        print("Google Wavenet voices...")
         voices = get_voices("de", "Wavenet")
         print(f" Voices: {len(voices)} ".center(60, "-"))
         for i, voice in enumerate(voices):
@@ -143,68 +182,50 @@ if __name__ == "__main__":
             rate = voice.natural_sample_rate_hertz
             print(f"{i:<3}→ {languages:<8} | {name:<24} | {gender:<8} | {rate:,} Hz")
 
-        sel = -1
+        wav_sel = -1
         if len(voices) == 1:
-            sel = 0
+            wav_sel = 0
         else:
-            sel = int(input(f"\nSelect one of the voices (0-{len(voices)-1}): "))
+            try:
+                wav_sel = int(input(f"\nSelect one of the voices (0-{len(voices)-1}): "))
+            except KeyboardInterrupt:
+                sys.exit(0)
 
-        print(voices[sel].name)
+        print(voices[wav_sel].name)
 
         # Get and save audio file of synthesized word
-        wav_data = text_to_wav(voices[sel].name, args.text)
-        filename = f"{args.text.replace(' ', '_')}-{voices[sel].name}.wav"
-        save_sound_file(wav_data.audio_content, filename)
+        if args.anki:
+            wav_text = data[data_sel]['l1_text']
+        else:
+            wav_text = args.text
+        wav_data = text_to_wav(voices[wav_sel].name, wav_text)
+        sound_filename = f"{args.text.replace(' ', '_')}-{voices[wav_sel].name}.wav"
+        save_sound_file(wav_data.audio_content, sound_filename)
 
-    # Query dwds for pronunciation of text
-    pronunciation = requests.get(f"https://www.dwds.de/api/ipa/?q={args.text[:20]}")
-    pronunciation.encoding = 'utf-8'
-    pronunciation = pronunciation.json() if pronunciation.status_code is requests.codes.ok else ""
-    template = Template("$german;$pos;$pronunciation;$sound_file;$gender;$english;$example;$example_translated")
+    # Build template string for anki output
     if args.anki:
-        for i, d in enumerate(data):
-            try:
-                params = {
-                    "german": d['l1_text'],
-                    "pos": WORD_CLASSES[d['wortart']],
-                    "pronunciation":
-                        pronunciation[0]['ipa'] if len(pronunciation) > 0 and
-                        pronunciation[0]['ipa'] is not None else "",
-                    "sound_file": f"[sound:{filename}]",
-                    "gender": "",
-                    "english": d['l2_text'],
-                    "example": d['sentences'][0][0],
-                    "example_translated": d['sentences'][0][1],
-                }
-                line = template.substitute(params)
-            except IndexError as e:
-                line = f"{d['l2_text']} - NO EXAMPLE SENTENCES AVAILABLE"
-            finally:
-                opts.append(line)
-                print(f"{i} → ", end="")
-                cprint(f"{line}", COLORS[i % len(COLORS)])
-
-    else:
-        #pprint(f"{i} → {data[i]}")
-        #opts.append(data[i])
-        opts = [f"{i} → {data[i]}" for i in range(0, len(data))]
-
-
-    # Prompt user for translation selection
-    sel = -1
-    while sel < 0 or sel > len(opts):
+        template = Template("$german;$pos;$pronunciation;$sound_file;$gender;$english;$example;$example_translated\n")
         try:
-            if len(opts) == 1:
-                sel = int(input(f"\nSelect one of the above (0): "))
-            else:
-                sel = int(input(f"\nSelect one of the above (0-{len(opts)-1}): "))
-        except ValueError:
-            print("Invalid selection. Please enter a number in the provided range.");
-            continue
-        except KeyboardInterrupt:
-            exit(0)
+            params = {
+                "german": data[data_sel]['l1_text'],
+                "pos": WORD_CLASSES[data[data_sel]['wortart']],
+                "pronunciation":
+                    pronunciation[0]['ipa'] if len(pronunciation) > 0 and
+                    pronunciation[0]['ipa'] is not None else "",
+                "sound_file": f"[sound:{sound_filename}]" if len(sound_filename) > 0 else "",
+                "gender": "",
+                "english": data[data_sel]['l2_text'],
+                "example": data[data_sel]['sentences'][0][0],
+                "example_translated": data[data_sel]['sentences'][0][1],
+            }
+            line = template.substitute(params)
+        except IndexError as e:
+            line = f"{data[data_sel]['l2_text']} - NO EXAMPLE SENTENCES AVAILABLE"
+        finally:
+            opts.append(line)
+            cprint(f"{line}", COLORS[i % len(COLORS)])
 
-    # Write data to text file for Anki import
-    with open(pathlib.Path(args.file), "a", encoding="utf-8") as fp:
-        fp.write(f"{opts[sel]}\n")
+        # Write data to text file for Anki import
+        with open(pathlib.Path(args.file), "a", encoding="utf-8") as fp:
+            fp.write(line)
 
