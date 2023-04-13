@@ -134,7 +134,7 @@ if __name__ == "__main__":
     # Output translation options
     text = args.text
     if args.anki:
-        template = Template("$german;$pos;$pronunciation;$sound_file;$gender;$english;$example;$example_translated")
+
         for i, d in enumerate(data):
             try:
                 line = "\n    ".join([
@@ -150,28 +150,31 @@ if __name__ == "__main__":
                 print(f"{i} → ", end="")
                 cprint(f"{line}", COLORS[i % len(COLORS)])
 
+        # Prompt user for translation selection
+        data_sel = -1
+        while data_sel < 0 or data_sel > len(opts):
+            try:
+                if len(opts) == 1:
+                    data_sel = int(input(f"\nSelect one of the above (0): "))
+                else:
+                    data_sel = int(input(f"\nSelect one of the above (0-{len(opts)-1}): "))
+            except ValueError:
+                print("Invalid data_selection. Please enter a number in the provided range.");
+                continue
+            except KeyboardInterrupt:
+                sys.exit(0)
+
+        # Correct text if different from original query
+        text = data[data_sel]['l1_text']
     else:
         opts = [f"{i} → {data[i]}" for i in range(0, len(data))]
+        text = args.text
 
-
-    # Prompt user for translation selection
-    data_sel = -1
-    while data_sel < 0 or data_sel > len(opts):
-        try:
-            if len(opts) == 1:
-                data_sel = int(input(f"\nSelect one of the above (0): "))
-            else:
-                data_sel = int(input(f"\nSelect one of the above (0-{len(opts)-1}): "))
-        except ValueError:
-            print("Invalid data_selection. Please enter a number in the provided range.");
-            continue
-        except KeyboardInterrupt:
-            sys.exit(0)
 
     # Query gcloud TTS for speech synthesis options
     sound_filename = ""
     if args.google_voices:
-        print("Google Wavenet voices...")
+        print("Getting Google Wavenet voices...")
         voices = get_voices("de", "Wavenet")
         print(f" Voices: {len(voices)} ".center(60, "-"))
         for i, voice in enumerate(voices):
@@ -193,24 +196,25 @@ if __name__ == "__main__":
         print(voices[wav_sel].name)
 
         # Get and save audio file of synthesized word
-        if args.anki:
-            wav_text = data[data_sel]['l1_text']
-        else:
-            wav_text = args.text
-        wav_data = text_to_wav(voices[wav_sel].name, wav_text)
+        wav_data = text_to_wav(voices[wav_sel].name, text)
         sound_filename = f"{args.text.replace(' ', '_')}-{voices[wav_sel].name}.wav"
         save_sound_file(wav_data.audio_content, sound_filename)
+
+    # Query dwds data for pronunciation
+    dwds = requests.get(f"https://www.dwds.de/api/ipa/?q={text[:20]}")
+    dwds.encoding = 'utf-8'
+    dwds_ipa = dwds.json() if dwds.status_code is requests.codes.ok else ""
+    pronunciation = dwds_ipa[0]['ipa'] if len(dwds_ipa) > 0 else ""
 
     # Build template string for anki output
     if args.anki:
         template = Template("$german;$pos;$pronunciation;$sound_file;$gender;$english;$example;$example_translated\n")
         try:
+            print("pronun", pronunciation)
             params = {
                 "german": data[data_sel]['l1_text'],
                 "pos": WORD_CLASSES[data[data_sel]['wortart']],
-                "pronunciation":
-                    pronunciation[0]['ipa'] if len(pronunciation) > 0 and
-                    pronunciation[0]['ipa'] is not None else "",
+                "pronunciation": pronunciation,
                 "sound_file": f"[sound:{sound_filename}]" if len(sound_filename) > 0 else "",
                 "gender": "",
                 "english": data[data_sel]['l2_text'],
