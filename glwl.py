@@ -13,6 +13,7 @@ from google.cloud import texttospeech as tts
 
 # TODO: test out DWDS API - https://www.dwds.de/d/api
 # TODO: implement English lookup
+# TODO; Add selection for example sentences
 
 parser = argparse.ArgumentParser(
         prog="glwl",
@@ -130,10 +131,8 @@ if __name__ == "__main__":
         print(f"No translations found for \"{args.text}\"")
         sys.exit(0)
 
-    # Query dwds for pronunciation of text
-    pronunciation = requests.get(f"https://www.dwds.de/api/ipa/?q={args.text[:20]}")
-    pronunciation.encoding = 'utf-8'
-    pronunciation = pronunciation.json() if pronunciation.status_code is requests.codes.ok else ""
+    # Output translation options
+    text = args.text
     if args.anki:
         template = Template("$german;$pos;$pronunciation;$sound_file;$gender;$english;$example;$example_translated")
         for i, d in enumerate(data):
