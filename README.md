@@ -1,4 +1,4 @@
-# German Language to English Lookup
+# German Language Word Lookup
 
 ## Installation / Setup
 Install the script requirements with `pip install -r requirements.txt`
@@ -6,9 +6,13 @@ Install the script requirements with `pip install -r requirements.txt`
 ### APIs
 The following APIs are utilized. They are all either free or provide a free tier or
 free usage up to a particular threshold.
-- Linguatools
-- dwds
-- Google TTS
+- [Linguatools](https://linguatools.org/language-apis/linguatools-translate-api/)
+- [DWDS (translated)](https://www-dwds-de.translate.goog/d/api?_x_tr_sl=de&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp#ipa)
+- [Google TTS](https://codelabs.developers.google.com/codelabs/cloud-translation-python3#4)
+
+TODO: add links to API docs
+TODO: add links to API key setup / service accounts (for gcloud)
+TODO: add specific env vars used for passing API keys to glwl.py
 
 Depending on the chosen options, you will need to setup the API keys and corresponding
 accounts for these APIs.
@@ -38,5 +42,4 @@ entdecken;verb;;[sound:entdeckt-de-DE-Wavenet-A.wav];;find/discover;Auf jedem Le
 
 ## Demo
 TODO: add asciinema demo gif
-
 
