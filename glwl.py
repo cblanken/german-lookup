@@ -137,18 +137,19 @@ if __name__ == "__main__":
 
         for i, d in enumerate(data):
             try:
-                line = "\n    ".join([
+                sentences = d["sentences"]
+                grouped_sentences = [(sentences[x[0]*2], sentences[x[0]*2+1]) for x in enumerate(sentences[::3])]
+                out = "\n    ".join([
                     f"German: {d['l1_text']}",
                     f"English: {d['l2_text']}",
-                    f"German Sentence: {d['sentences'][0][0]}",
-                    f"English Sentence: {d['sentences'][0][1]}",
+                    "Sentences:\n\t{}".format("\n\t".join([f"{i}: {x[0]}\n{x[1]}" for i, x in enumerate(grouped_sentences)]))
                 ])
             except IndexError as e:
-                line = f"{d['l2_text']} - NO EXAMPLE SENTENCES AVAILABLE"
+                out = f"{d['l2_text']} - NO EXAMPLE SENTENCES AVAILABLE"
             finally:
-                opts.append(line)
+                opts.append(out)
                 print(f"{i} → ", end="")
-                cprint(f"{line}", COLORS[i % len(COLORS)])
+                cprint(f"{out}", COLORS[i % len(COLORS)])
 
         # Prompt user for translation selection
         data_sel = -1
