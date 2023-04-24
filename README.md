@@ -7,6 +7,7 @@ Install the script requirements with `pip install -r requirements.txt`
 The following APIs are utilized. They are all either free or provide a free tier or
 free usage up to a particular threshold.
 - [Linguatools](https://linguatools.org/language-apis/linguatools-translate-api/)
+    - [Linguatools RapidAPI](https://rapidapi.com/petapro/api/linguatools-translate)
 - [DWDS (translated)](https://www-dwds-de.translate.goog/d/api?_x_tr_sl=de&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp#ipa)
 - [Google TTS](https://codelabs.developers.google.com/codelabs/cloud-translation-python3#4)
 
