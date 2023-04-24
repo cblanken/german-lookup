@@ -125,7 +125,8 @@ def save_sound_file(data, filename):
 if __name__ == "__main__":
     # Query linguatools for text translation
     data = translate_word_lingua(args.text, "de-en", 5)
-    opts = []
+    translation_opts = []
+    example_opts = []
     
     if data is None or len(data) == 0:
         print(f"No translations found for \"{args.text}\"")
@@ -134,33 +135,37 @@ if __name__ == "__main__":
     # Output translation options
     text = args.text
     if args.anki:
-
         for i, d in enumerate(data):
             try:
                 sentences = d["sentences"]
-                grouped_sentences = [(sentences[x[0]*2], sentences[x[0]*2+1]) for x in enumerate(sentences[::3])]
                 out = "\n    ".join([
                     f"German: {d['l1_text']}",
                     f"English: {d['l2_text']}",
-                    "Sentences:\n\t{}".format("\n\t".join([f"{i}: {x[0]}\n{x[1]}" for i, x in enumerate(grouped_sentences)]))
+                    "Sentences:\n\t{}".format("\n\t".join([f"{i}: {x[0]}\n\t   {x[1]}" for i, x in enumerate(sentences)]))
                 ])
             except IndexError as e:
                 out = f"{d['l2_text']} - NO EXAMPLE SENTENCES AVAILABLE"
             finally:
-                opts.append(out)
+                translation_opts.append(out)
+                example_opts.append(sentences)
                 print(f"{i} → ", end="")
                 cprint(f"{out}", COLORS[i % len(COLORS)])
 
-        # Prompt user for translation selection
+        # Prompt user for selections
         data_sel = -1
-        while data_sel < 0 or data_sel > len(opts):
+        example_sel = -1
+        while data_sel < 0 or data_sel > len(translation_opts):
             try:
-                if len(opts) == 1:
-                    data_sel = int(input(f"\nSelect one of the above (0): "))
+                # Select translation
+                if len(translation_opts) == 1:
+                    data_sel = int(input(f"\nSelect one of the above translations (0): "))
                 else:
-                    data_sel = int(input(f"\nSelect one of the above (0-{len(opts)-1}): "))
+                    data_sel = int(input(f"\nSelect one of the above (0-{len(translation_opts)-1}): "))
+
+                # Select example sentence
+                example_sel = int(input(f"\nSelect one of the above (0-{len(example_opts[data_sel])-1}): "))
             except ValueError:
-                print("Invalid data_selection. Please enter a number in the provided range.");
+                print("Invalid selection. Please enter a number in the provided range.");
                 continue
             except KeyboardInterrupt:
                 sys.exit(0)
@@ -168,7 +173,7 @@ if __name__ == "__main__":
         # Correct text if different from original query
         text = data[data_sel]['l1_text']
     else:
-        opts = [f"{i} → {data[i]}" for i in range(0, len(data))]
+        translation_opts = [f"{i} → {data[i]}" for i in range(0, len(data))]
         text = args.text
 
 
@@ -211,7 +216,7 @@ if __name__ == "__main__":
     if args.anki:
         template = Template("$german;$pos;$pronunciation;$sound_file;$gender;$english;$example;$example_translated\n")
         try:
-            print("pronun", pronunciation)
+            print(f"Pronunciation: {pronunciation}")
             params = {
                 "german": data[data_sel]['l1_text'],
                 "pos": WORD_CLASSES[data[data_sel]['wortart']],
@@ -219,14 +224,14 @@ if __name__ == "__main__":
                 "sound_file": f"[sound:{sound_filename}]" if len(sound_filename) > 0 else "",
                 "gender": "",
                 "english": data[data_sel]['l2_text'],
-                "example": data[data_sel]['sentences'][0][0],
-                "example_translated": data[data_sel]['sentences'][0][1],
+                "example": example_opts[data_sel][example_sel][0],
+                "example_translated": example_opts[data_sel][example_sel][1],
             }
             line = template.substitute(params)
         except IndexError as e:
             line = f"{data[data_sel]['l2_text']} - NO EXAMPLE SENTENCES AVAILABLE"
         finally:
-            opts.append(line)
+            #opts.append(line)
             cprint(f"{line}", COLORS[i % len(COLORS)])
 
         # Write data to text file for Anki import
