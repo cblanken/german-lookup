@@ -160,10 +160,10 @@ if __name__ == "__main__":
                 if len(translation_opts) == 1:
                     data_sel = int(input(f"\nSelect one of the above translations (0): "))
                 else:
-                    data_sel = int(input(f"\nSelect one of the above (0-{len(translation_opts)-1}): "))
+                    data_sel = int(input(f"\nSelect one of the above translations (0-{len(translation_opts)-1}): "))
 
                 # Select example sentence
-                example_sel = int(input(f"\nSelect one of the above (0-{len(example_opts[data_sel])-1}): "))
+                example_sel = int(input(f"\nSelect one of the above examples (0-{len(example_opts[data_sel])-1}): "))
             except ValueError:
                 print("Invalid selection. Please enter a number in the provided range.");
                 continue
