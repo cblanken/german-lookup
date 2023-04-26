@@ -155,6 +155,7 @@ if __name__ == "__main__":
         data_sel = -1
         example_sel = -1
         while data_sel < 0 or data_sel > len(translation_opts):
+            # TODO: split translation and example prompts
             try:
                 # Select translation
                 if len(translation_opts) == 1:
@@ -164,14 +165,16 @@ if __name__ == "__main__":
 
                 # Select example sentence
                 example_sel = int(input(f"\nSelect one of the above examples (0-{len(example_opts[data_sel])-1}): "))
-            except ValueError:
+                text = data[data_sel]['l1_text'] # test data_sel
+                example = example_opts[data_sel][example_sel], # test example_sel
+            except (ValueError, IndexError):
                 print("Invalid selection. Please enter a number in the provided range.");
+                data_sel = -1
                 continue
             except KeyboardInterrupt:
                 sys.exit(0)
 
         # Correct text if different from original query
-        text = data[data_sel]['l1_text']
     else:
         translation_opts = [f"{i} → {data[i]}" for i in range(0, len(data))]
         text = args.text
